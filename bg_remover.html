@@ -1,0 +1,57 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Background Removal Processor</title>
+  <script src="https://cdn.jsdelivr.net/npm/@imgly/background-removal@1.4.5/dist/bundle.js"></script>
+</head>
+<body>
+  <h1>Profile Photo Background Removal</h1>
+  <div id="status">Initializing...</div>
+
+  <script>
+    function log(msg) {
+      console.log(msg);
+      fetch('/log?msg=' + encodeURIComponent(msg)).catch(() => {});
+    }
+
+    window.addEventListener('DOMContentLoaded', async () => {
+      const status = document.getElementById('status');
+      log('DOMContentLoaded fired. imglyRemoveBackground type: ' + typeof imglyRemoveBackground);
+
+      try {
+        log('Starting background removal on /assets/images/deepak-vk-original.png');
+        const config = {
+          publicPath: 'https://cdn.jsdelivr.net/npm/@imgly/background-removal-data@1.4.5/dist/',
+          progress: (key, current, total) => {
+            const pct = total ? Math.round((current / total) * 100) : '';
+            log(`Progress: ${key} ${pct ? pct + '%' : ''}`);
+          }
+        };
+
+        const blob = await imglyRemoveBackground('/assets/images/deepak-vk-original.png', config);
+        log('Blob created successfully, size: ' + blob.size);
+
+        const reader = new FileReader();
+        reader.onloadend = async () => {
+          const base64 = reader.result;
+          log('Posting base64 to /save-transparent-image, length: ' + base64.length);
+
+          const res = await fetch('/save-transparent-image', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ image: base64 })
+          });
+
+          const result = await res.json();
+          log('Save result: ' + JSON.stringify(result));
+        };
+        reader.readAsDataURL(blob);
+
+      } catch (err) {
+        log('ERROR in bg removal: ' + err.message + ' ' + (err.stack || ''));
+      }
+    });
+  </script>
+</body>
+</html>
